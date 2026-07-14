@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduGuard — AI Dropout Prediction & Counseling System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --blue-900:#0B2A63; --blue-700:#1447A6; --blue-600:#2563EB; --blue-500:#3B82F6; --blue-100:#DBEAFE; --blue-50:#EFF6FF;
+  --bg:#F4F7FC; --surface:#FFFFFF; --border:#E3E8F2; --text:#0F1B34; --muted:#5B6B8C;
+  --low:#16A34A; --low-bg:#DCFCE7; --mid:#D97706; --mid-bg:#FEF3C7; --high:#DC2626; --high-bg:#FEE2E2;
+  --radius:14px;
+}
+body.dark{
+  --bg:#0B1220; --surface:#121B30; --border:#233052; --text:#EAEFFB; --muted:#8CA0C9;
+  --blue-50:#152447; --blue-100:#1B2E58;
+  --low-bg:#0F2A1C; --mid-bg:#332209; --high-bg:#3A1414;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); transition:background .25s, color .25s;}
+.mono{font-family:'JetBrains Mono',monospace;}
+button{font-family:inherit; cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+::-webkit-scrollbar{width:8px; height:8px;} ::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
+
+/* ---------------- LOGIN ---------------- */
+#loginScreen{
+  min-height:100vh; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;
+  background:radial-gradient(circle at 20% 20%, var(--blue-700), var(--blue-900) 60%);
+}
+#loginScreen::before{
+  content:''; position:absolute; inset:0; opacity:.5;
+  background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size:26px 26px;
+}
+.login-card{
+  position:relative; z-index:2; width:420px; max-width:92vw; background:var(--surface); border-radius:20px;
+  padding:40px 36px; box-shadow:0 40px 90px -30px rgba(0,0,0,0.5);
+}
+.login-logo{display:flex; align-items:center; gap:10px; margin-bottom:22px;}
+.logo-mark{width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg,var(--blue-600),var(--blue-900)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800;}
+.login-card h1{font-size:22px; font-weight:800; margin-bottom:4px;}
+.login-card p.sub{color:var(--muted); font-size:13.5px; margin-bottom:26px;}
+.field{margin-bottom:16px;}
+.field label{display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.03em;}
+.field input, .field select{
+  width:100%; padding:11px 13px; border:1.5px solid var(--border); border-radius:9px; background:var(--bg); color:var(--text); font-size:14.5px;
+}
+.field input:focus, .field select:focus{outline:none; border-color:var(--blue-500); box-shadow:0 0 0 3px var(--blue-100);}
+.role-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px;}
+.role-btn{padding:12px 6px; border:1.5px solid var(--border); border-radius:9px; background:var(--bg); font-size:12.5px; font-weight:600; color:var(--muted); text-align:center; transition:.15s;}
+.role-btn.active{border-color:var(--blue-600); background:var(--blue-50); color:var(--blue-700);}
+.btn-block{width:100%; padding:13px; border:none; border-radius:9px; background:var(--blue-600); color:#fff; font-weight:700; font-size:14.5px; transition:transform .15s;}
+.btn-block:hover{transform:translateY(-1px); background:var(--blue-700);}
+.login-toggle{text-align:center; margin-top:16px; font-size:13px; color:var(--muted);}
+.login-toggle a{color:var(--blue-600); font-weight:600; cursor:pointer;}
+.demo-note{margin-top:18px; font-size:11.5px; color:var(--muted); background:var(--blue-50); border-radius:8px; padding:10px 12px; line-height:1.5;}
+.error-text{color:var(--high); font-size:12.5px; font-weight:600; margin:-8px 0 14px;}
+
+/* ---------------- APP SHELL ---------------- */
+#appShell{display:none; min-height:100vh;}
+#appShell.show{display:flex;}
+.sidebar{
+  width:230px; background:var(--blue-900); color:#dfe8ff; flex-shrink:0; padding:22px 14px; display:flex; flex-direction:column; gap:4px;
+  position:sticky; top:0; height:100vh;
+}
+.sb-logo{display:flex; align-items:center; gap:10px; padding:6px 8px 22px; color:#fff; font-weight:800; font-size:17px;}
+.sb-link{
+  display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:9px; color:#b9c8ec; font-size:14px; font-weight:500;
+  border:none; background:transparent; text-align:left; width:100%; transition:.15s;
+}
+.sb-link:hover{background:rgba(255,255,255,0.06); color:#fff;}
+.sb-link.active{background:var(--blue-600); color:#fff;}
+.sb-icon{width:18px; text-align:center; font-size:15px;}
+.sb-foot{margin-top:auto; padding-top:14px; border-top:1px solid rgba(255,255,255,0.1); font-size:12px; color:#8fa2cc;}
+
+.main{flex:1; min-width:0;}
+.topbar{
+  background:var(--surface); border-bottom:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;
+}
+.topbar h2{font-size:19px; font-weight:800;}
+.topbar-right{display:flex; align-items:center; gap:14px;}
+.icon-btn{background:var(--bg); border:1px solid var(--border); width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--muted);}
+.user-chip{display:flex; align-items:center; gap:8px; background:var(--blue-50); border-radius:100px; padding:6px 14px 6px 6px; font-size:13px; font-weight:600;}
+.user-chip .av{width:26px; height:26px; border-radius:50%; background:var(--blue-600); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;}
+.badge{font-size:10.5px; padding:2px 8px; border-radius:100px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;}
+.badge.low{background:var(--low-bg); color:var(--low);}
+.badge.mid{background:var(--mid-bg); color:var(--mid);}
+.badge.high{background:var(--high-bg); color:var(--high);}
+
+.view{display:none; padding:26px 28px 60px;}
+.view.active{display:block;}
+
+/* stat cards */
+.stat-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:14px; margin-bottom:24px;}
+@media (max-width:1400px){.stat-grid{grid-template-columns:repeat(4,1fr);}}
+@media (max-width:800px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+.stat-card .n{font-size:24px; font-weight:800;}
+.stat-card .l{font-size:11.5px; color:var(--muted); margin-top:3px; font-weight:600;}
+
+.chart-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+@media (max-width:1000px){.chart-grid{grid-template-columns:1fr;}}
+.panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:18px;}
+.panel h3{font-size:15px; font-weight:700; margin-bottom:14px;}
+.panel canvas{max-height:260px;}
+
+/* students table */
+.toolbar{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; align-items:center;}
+.toolbar input[type=text], .toolbar select{
+  padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-size:13.5px;
+}
+.spacer{flex:1;}
+.btn{padding:10px 16px; border-radius:8px; border:1.5px solid var(--border); background:var(--surface); color:var(--text); font-size:13.5px; font-weight:600;}
+.btn.primary{background:var(--blue-600); border-color:var(--blue-600); color:#fff;}
+.btn.primary:hover{background:var(--blue-700);}
+.btn.danger{color:var(--high); border-color:var(--high-bg);}
+table{width:100%; border-collapse:collapse; background:var(--surface); border-radius:var(--radius); overflow:hidden;}
+.table-wrap{border:1px solid var(--border); border-radius:var(--radius); overflow:auto;}
+th,td{padding:12px 14px; text-align:left; font-size:13.5px; border-bottom:1px solid var(--border); white-space:nowrap;}
+th{background:var(--blue-50); color:var(--blue-700); font-weight:700; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--blue-50);}
+.link-btn{background:none; border:none; color:var(--blue-600); font-weight:600; font-size:13px;}
+.link-btn.del{color:var(--high);}
+.empty-row td{text-align:center; color:var(--muted); padding:30px; font-size:13.5px;}
+
+/* modal */
+.overlay{position:fixed; inset:0; background:rgba(10,15,30,0.55); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
+.overlay.show{display:flex;}
+.modal{background:var(--surface); border-radius:16px; width:640px; max-width:100%; max-height:88vh; overflow:auto; padding:26px 28px;}
+.modal h3{font-size:18px; font-weight:800; margin-bottom:18px;}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.modal .field label{font-size:11.5px;}
+.modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
+.section-label{font-size:11.5px; font-weight:800; color:var(--blue-600); text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px;}
+
+/* profile drawer */
+#profileOverlay .modal{width:720px;}
+.report-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;}
+.score-hero{display:flex; align-items:center; gap:20px; background:var(--blue-50); border-radius:12px; padding:18px 20px; margin-bottom:10px;}
+.score-circle{width:78px; height:78px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; color:#fff; flex-shrink:0;}
+.rlist{list-style:none; font-size:13.5px;}
+.rlist li{padding:6px 0; border-bottom:1px dashed var(--border); display:flex; gap:8px;}
+.rlist li:last-child{border-bottom:none;}
+
+/* alerts */
+.alert-item{display:flex; gap:14px; align-items:flex-start; background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--high); border-radius:10px; padding:14px 16px; margin-bottom:10px;}
+.alert-item.mid{border-left-color:var(--mid);}
+.alert-item .a-icon{font-size:18px;}
+.alert-item b{font-size:14px;} .alert-item p{font-size:13px; color:var(--muted); margin-top:2px;}
+
+/* upload */
+.dropzone{border:2px dashed var(--border); border-radius:14px; padding:44px 20px; text-align:center; background:var(--surface);}
+.dropzone.drag{border-color:var(--blue-500); background:var(--blue-50);}
+.upload-summary{margin-top:18px;}
+.sum-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px;}
+
+/* counseling */
+.risk-student-card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px;}
+.rs-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+.note-item{background:var(--bg); border-radius:8px; padding:10px 12px; font-size:13px; margin-top:8px;}
+.note-item .date{color:var(--muted); font-size:11.5px; font-family:'JetBrains Mono',monospace;}
+.note-input-row{display:flex; gap:8px; margin-top:10px;}
+.note-input-row textarea{flex:1; padding:9px 11px; border:1.5px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-size:13px; resize:vertical; min-height:38px;}
+
+@media print{
+  .sidebar,.topbar,.toolbar,.btn,#appShell>.sidebar{display:none !important;}
+  .view{display:block !important;}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><div class="logo-mark">E</div><span style="font-weight:800; font-size:19px;">EduGuard</span></div>
+    <h1 id="loginTitle">Sign in to your dashboard</h1>
+    <p class="sub" id="loginSub">AI-based dropout prediction &amp; counseling system</p>
+
+    <div class="field">
+      <label>Full name</label>
+      <input type="text" id="loginName" placeholder="e.g. Dr. Anitha Raman">
+    </div>
+    <div class="field" id="emailField">
+      <label>Institution email</label>
+      <input type="text" id="loginEmail" placeholder="name@college.edu">
+    </div>
+    <div class="field">
+      <label>Sign in as</label>
+      <div class="role-grid">
+        <button class="role-btn active" data-role="Administrator" onclick="selectRole(this)">Admin</button>
+        <button class="role-btn" data-role="Faculty" onclick="selectRole(this)">Faculty</button>
+        <button class="role-btn" data-role="Counselor" onclick="selectRole(this)">Counselor</button>
+      </div>
+    </div>
+    <div class="error-text" id="loginError" style="display:none;"></div>
+    <button class="btn-block" onclick="doLogin()" id="loginBtn">Sign in</button>
+    <div class="login-toggle" id="toggleLine">Don't have an account? <a onclick="toggleMode()">Register</a></div>
+    <div class="demo-note">Demo mode: authentication is simulated locally in your browser for this preview — no real password is checked. Student, counseling, and alert data persist to your session in memory only.</div>
+  </div>
+</div>
+
+<!-- ================= APP SHELL ================= -->
+<div id="appShell">
+  <div class="sidebar">
+    <div class="sb-logo"><div class="logo-mark">E</div>EduGuard</div>
+    <button class="sb-link active" data-view="dashboard" onclick="showView('dashboard')"><span class="sb-icon">▦</span>Dashboard</button>
+    <button class="sb-link" data-view="students" onclick="showView('students')"><span class="sb-icon">🧑‍🎓</span>Students</button>
+    <button class="sb-link" data-view="upload" onclick="showView('upload')"><span class="sb-icon">⇪</span>Upload Data</button>
+    <button class="sb-link" data-view="counseling" onclick="showView('counseling')"><span class="sb-icon">💬</span>Counseling</button>
+    <button class="sb-link" data-view="alerts" onclick="showView('alerts')"><span class="sb-icon">⚠</span>Alerts</button>
+    <button class="sb-link" data-view="reports" onclick="showView('reports')"><span class="sb-icon">▤</span>Reports</button>
+    <div class="sb-foot">Signed in as<br><b id="sbUserName" style="color:#fff;"></b><br><span id="sbUserRole"></span></div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="viewTitle">Dashboard</h2>
+      <div class="topbar-right">
+        <button class="icon-btn" onclick="toggleDark()" id="darkBtn">☾</button>
+        <div class="user-chip"><div class="av" id="avInit">A</div><span id="chipName">Admin</span></div>
+        <button class="btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="chart-grid">
+        <div class="panel"><h3>Risk Distribution</h3><canvas id="chartRisk"></canvas></div>
+        <div class="panel"><h3>Attendance by Department (%)</h3><canvas id="chartAttendance"></canvas></div>
+        <div class="panel"><h3>Department-wise Student Count</h3><canvas id="chartDept"></canvas></div>
+        <div class="panel"><h3>Monthly Average Attendance Trend</h3><canvas id="chartMonthly"></canvas></div>
+      </div>
+      <div class="panel"><h3>Dropout Risk Trend (last 6 months)</h3><canvas id="chartTrend" style="max-height:220px;"></canvas></div>
+    </div>
+
+    <!-- STUDENTS -->
+    <div class="view" id="view-students">
+      <div class="toolbar">
+        <input type="text" id="searchBox" placeholder="Search name or register no…" oninput="renderStudents()">
+        <select id="filterDept" onchange="renderStudents()"><option value="">All departments</option></select>
+        <select id="filterYear" onchange="renderStudents()"><option value="">All years</option><option>1</option><option>2</option><option>3</option><option>4</option></select>
+        <select id="filterRisk" onchange="renderStudents()"><option value="">All risk levels</option><option>Low</option><option>Medium</option><option>High</option></select>
+        <div class="spacer"></div>
+        <button class="btn primary" onclick="openStudentModal()">+ Add Student</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Reg No</th><th>Dept</th><th>Yr/Sem</th><th>CGPA</th><th>Attendance</th><th>Risk</th><th>Score</th><th></th></tr></thead>
+          <tbody id="studentsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- UPLOAD -->
+    <div class="view" id="view-upload">
+      <div class="panel">
+        <h3>Bulk upload student data</h3>
+        <p style="color:var(--muted); font-size:13.5px; margin-bottom:16px;">Upload a CSV with columns: name, regNo, department, year, semester, cgpa, attendance, backlogs, feeStatus. Rows are validated, deduplicated by register number, and merged into the student database.</p>
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('csvInput').click()">
+          <div style="font-size:32px; margin-bottom:8px;">⇪</div>
+          <div style="font-weight:700; margin-bottom:4px;">Click to choose a CSV file</div>
+          <div style="color:var(--muted); font-size:13px;">or drag and drop it here</div>
+        </div>
+        <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCsv(this.files[0])">
+        <div class="upload-summary" id="uploadSummary"></div>
+      </div>
+    </div>
+
+    <!-- COUNSELING -->
+    <div class="view" id="view-counseling">
+      <div class="panel">
+        <h3>High-risk students requiring counseling</h3>
+        <div id="counselingList"></div>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="view" id="view-alerts">
+      <div class="panel">
+        <h3>Active alerts</h3>
+        <div id="alertsList"></div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="view" id="view-reports">
+      <div class="panel">
+        <h3>Generate reports</h3>
+        <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">Export data for offline review or institutional records.</p>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <button class="btn primary" onclick="exportStudentsExcel()">⬇ Export All Students (Excel)</button>
+          <button class="btn" onclick="exportDeptSummaryExcel()">⬇ Department Summary (Excel)</button>
+          <button class="btn" onclick="window.print()">🖨 Print / Save Overall Report as PDF</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Overall Analytics Report</h3>
+        <div id="reportBody" style="font-size:13.5px; line-height:1.8;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= STUDENT MODAL ================= -->
+<div class="overlay" id="studentOverlay">
+  <div class="modal">
+    <h3 id="studentModalTitle">Add Student</h3>
+    <input type="hidden" id="editId">
+    <div class="section-label">Personal Information</div>
+    <div class="grid2">
+      <div class="field"><label>Full name</label><input id="f_name"></div>
+      <div class="field"><label>Register number</label><input id="f_regNo"></div>
+      <div class="field"><label>Department</label>
+        <select id="f_department"><option>Computer Science</option><option>Electronics &amp; Communication</option><option>Mechanical Engineering</option><option>Civil Engineering</option><option>Information Technology</option></select>
+      </div>
+      <div class="field"><label>Year</label><select id="f_year"><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+      <div class="field"><label>Semester</label><select id="f_semester"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+      <div class="field"><label>Age</label><input id="f_age" type="number"></div>
+      <div class="field"><label>Gender</label><select id="f_gender"><option>Female</option><option>Male</option><option>Other</option></select></div>
+    </div>
+    <div class="section-label">Academic &amp; Risk Factors</div>
+    <div class="grid2">
+      <div class="field"><label>CGPA (0–10)</label><input id="f_cgpa" type="number" step="0.01" min="0" max="10"></div>
+      <div class="field"><label>Internal marks (%)</label><input id="f_internal" type="number" min="0" max="100"></div>
+      <div class="field"><label>Attendance (%)</label><input id="f_attendance" type="number" min="0" max="100"></div>
+      <div class="field"><label>Active backlogs</label><input id="f_backlogs" type="number" min="0"></div>
+      <div class="field"><label>Fee status</label><select id="f_feeStatus"><option>Paid</option><option>Pending</option><option>Overdue</option></select></div>
+      <div class="field"><label>Guardian contact</label><input id="f_contact" placeholder="+91 9xxxxxxxxx"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeStudentModal()">Cancel</button>
+      <button class="btn primary" onclick="saveStudent()">Save student</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PROFILE / RISK REPORT MODAL ================= -->
+<div class="overlay" id="profileOverlay">
+  <div class="modal">
+    <h3 id="profileName">Student profile</h3>
+    <div class="score-hero">
+      <div class="score-circle" id="profileScoreCircle">--</div>
+      <div>
+        <div style="font-weight:700; font-size:15px;" id="profileRiskLabel">Risk level</div>
+        <div style="color:var(--muted); font-size:13px; margin-top:2px;" id="profileMeta">Dept · Year</div>
+      </div>
+    </div>
+    <div class="report-grid">
+      <div>
+        <div class="section-label">Key metrics</div>
+        <ul class="rlist" id="profileMetrics"></ul>
+      </div>
+      <div>
+        <div class="section-label">AI risk factors</div>
+        <ul class="rlist" id="profileReasons"></ul>
+      </div>
+    </div>
+    <div class="section-label">Counseling notes</div>
+    <div id="profileNotes"></div>
+    <div class="note-input-row">
+      <textarea id="newNoteText" placeholder="Add a counseling note or follow-up action…"></textarea>
+      <button class="btn primary" onclick="addNoteFromProfile()">Add note</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeProfile()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   STATE
+===================================================================== */
+let currentUser = null;      // {name, email, role}
+let authMode = 'login';      // 'login' | 'register'
+let selectedRole = 'Administrator';
+let darkMode = false;
+let currentView = 'dashboard';
+let activeProfileId = null;
+let charts = {};
+
+const DEPARTMENTS = ['Computer Science','Electronics & Communication','Mechanical Engineering','Civil Engineering','Information Technology'];
+
+// Static mock history used only for the two trend charts (no real longitudinal
+// data exists in this in-memory demo, so these represent illustrative trends).
+const MONTH_LABELS = ['Feb','Mar','Apr','May','Jun','Jul'];
+const MONTHLY_ATTENDANCE_TREND = [86, 84, 82, 80, 78, 79];
+const MONTHLY_HIGH_RISK_PCT_TREND = [14, 16, 19, 23, 26, 24];
+
+let students = [];
+let nextId = 1;
+
+/* =====================================================================
+   SEED DATA
+===================================================================== */
+function seedStudents(){
+  const seed = [
+    ["Aarthi Krishnan","Computer Science",2,3,8.4,88,90,0,"Paid","Female"],
+    ["Bala Subramaniam","Computer Science",3,5,6.1,64,72,2,"Overdue","Male"],
+    ["Charulatha Iyer","Computer Science",1,1,7.8,80,85,0,"Paid","Female"],
+    ["Dinesh Kumar","Computer Science",4,7,5.4,55,60,3,"Overdue","Male"],
+    ["Esther Grace","Computer Science",2,3,8.9,91,95,0,"Paid","Female"],
+    ["Farooq Ahmed","Electronics & Communication",3,5,6.8,70,75,1,"Pending","Male"],
+    ["Gayathri Devi","Electronics & Communication",1,2,7.2,76,88,0,"Paid","Female"],
+    ["Harish Chandran","Electronics & Communication",2,4,5.9,60,58,2,"Overdue","Male"],
+    ["Ishwarya Ramesh","Electronics & Communication",4,8,8.1,84,92,0,"Paid","Female"],
+    ["Jagadeesh Pillai","Electronics & Communication",3,6,6.4,66,68,1,"Pending","Male"],
+    ["Kavya Sundaram","Mechanical Engineering",2,3,7.5,78,83,0,"Paid","Female"],
+    ["Lokesh Varma","Mechanical Engineering",1,1,5.2,52,55,3,"Overdue","Male"],
+    ["Meenakshi Raj","Mechanical Engineering",3,6,8.6,89,94,0,"Paid","Female"],
+    ["Naveen Prasad","Mechanical Engineering",4,7,6.0,62,65,2,"Pending","Male"],
+    ["Oviya Shankar","Mechanical Engineering",2,4,7.0,73,79,1,"Paid","Female"],
+    ["Prakash Elango","Civil Engineering",3,5,5.6,58,54,3,"Overdue","Male"],
+    ["Quincy Dsouza","Civil Engineering",1,2,7.9,81,87,0,"Paid","Male"],
+    ["Revathi Balan","Civil Engineering",2,3,8.3,86,90,0,"Paid","Female"],
+    ["Sathish Kumar","Civil Engineering",4,8,6.5,67,70,1,"Pending","Male"],
+    ["Tanvi Menon","Civil Engineering",3,6,7.3,75,81,0,"Paid","Female"],
+    ["Umapathy Selvam","Information Technology",2,4,5.8,60,57,2,"Overdue","Male"],
+    ["Vaishnavi Reddy","Information Technology",1,1,8.7,90,93,0,"Paid","Female"],
+    ["Wilson Fernandez","Information Technology",4,7,6.9,71,74,1,"Pending","Male"],
+    ["Yamini Chandrasekar","Information Technology",3,5,7.6,79,86,0,"Paid","Female"],
+    ["Zubin Mistry","Information Technology",2,3,5.0,50,49,4,"Overdue","Male"]
+  ];
+  students = seed.map(r => {
+    const s = {
+      id: nextId++,
+      name:r[0], department:r[1], year:r[2], semester:r[3], cgpa:r[4],
+      internal:r[5], attendance:r[6], backlogs:r[7], feeStatus:r[8], gender:r[9],
+      regNo: genRegNo(r[1], r[2]),
+      age: 17 + Number(r[2]),
+      contact:"",
+      notes: []
+    };
+    computeRisk(s);
+    return s;
+  });
+}
+function genRegNo(dept, year){
+  const map = {"Computer Science":"CSE","Electronics & Communication":"ECE","Mechanical Engineering":"MEC","Civil Engineering":"CIV","Information Technology":"IT"};
+  const code = map[dept] || "GEN";
+  const n = String(Math.floor(1000 + Math.random()*8999));
+  return `${20+Number(year)}${code}${n}`;
+}
+
+/* =====================================================================
+   RISK ENGINE
+===================================================================== */
+function computeRisk(s){
+  const attendanceGap = Math.max(0, 100 - Number(s.attendance||0));
+  const cgpaGap = Math.max(0, (10 - Number(s.cgpa||0)) / 10 * 100);
+  const backlogComponent = Math.min(Number(s.backlogs||0), 5) / 5 * 100;
+  const feeComponent = s.feeStatus === 'Overdue' ? 100 : (s.feeStatus === 'Pending' ? 50 : 0);
+
+  let score = attendanceGap*0.35 + cgpaGap*0.30 + backlogComponent*0.20 + feeComponent*0.15;
+  score = Math.round(Math.max(0, Math.min(100, score)));
+
+  s.riskScore = score;
+  s.riskLevel = score >= 60 ? 'High' : (score >= 35 ? 'Medium' : 'Low');
+  return s;
+}
+function riskReasons(s){
+  const reasons = [];
+  if (Number(s.attendance) < 75) reasons.push(`Low attendance (${s.attendance}%, below the 75% requirement)`);
+  if (Number(s.cgpa) < 6) reasons.push(`Weak academic performance (CGPA ${s.cgpa})`);
+  if (Number(s.backlogs) > 0) reasons.push(`${s.backlogs} active backlog${s.backlogs>1?'s':''}`);
+  if (s.feeStatus === 'Overdue') reasons.push('Fee payment overdue');
+  else if (s.feeStatus === 'Pending') reasons.push('Fee payment pending');
+  if (reasons.length === 0) reasons.push('No significant risk factors detected');
+  return reasons;
+}
+function riskColor(level){
+  return level === 'High' ? getCss('--high') : level === 'Medium' ? getCss('--mid') : getCss('--low');
+}
+function getCss(varName){
+  return getComputedStyle(document.body).getPropertyValue(varName).trim();
+}
+function badgeHtml(level){
+  const cls = level === 'High' ? 'high' : level === 'Medium' ? 'mid' : 'low';
+  return `<span class="badge ${cls}">${level}</span>`;
+}
+
+/* =====================================================================
+   AUTH
+===================================================================== */
+function selectRole(btn){
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedRole = btn.dataset.role;
+}
+function toggleMode(){
+  authMode = authMode === 'login' ? 'register' : 'login';
+  if (authMode === 'register'){
+    document.getElementById('loginTitle').textContent = 'Create your account';
+    document.getElementById('loginSub').textContent = 'Set up access to the dropout prediction system';
+    document.getElementById('loginBtn').textContent = 'Create account';
+    document.getElementById('toggleLine').innerHTML = 'Already have an account? <a onclick="toggleMode()">Sign in</a>';
+  } else {
+    document.getElementById('loginTitle').textContent = 'Sign in to your dashboard';
+    document.getElementById('loginSub').textContent = 'AI-based dropout prediction & counseling system';
+    document.getElementById('loginBtn').textContent = 'Sign in';
+    document.getElementById('toggleLine').innerHTML = "Don't have an account? <a onclick=\"toggleMode()\">Register</a>";
+  }
+}
+function doLogin(){
+  const name = document.getElementById('loginName').value.trim();
+  const email = document.getElementById('loginEmail').value.trim();
+  const errEl = document.getElementById('loginError');
+  if (!name){
+    errEl.textContent = 'Please enter your full name.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!email || !email.includes('@')){
+    errEl.textContent = 'Please enter a valid institution email.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  currentUser = { name, email, role: selectedRole };
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').classList.add('show');
+
+  document.getElementById('sbUserName').textContent = name;
+  document.getElementById('sbUserRole').textContent = selectedRole;
+  document.getElementById('chipName').textContent = name.split(' ')[0];
+  document.getElementById('avInit').textContent = name.trim().charAt(0).toUpperCase();
+
+  if (students.length === 0) seedStudents();
+  populateFilterOptions();
+  showView('dashboard');
+}
+function logout(){
+  currentUser = null;
+  document.getElementById('appShell').classList.remove('show');
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginName').value = '';
+  document.getElementById('loginEmail').value = '';
+}
+
+/* =====================================================================
+   NAVIGATION
+===================================================================== */
+function showView(view){
+  currentView = view;
+  document.querySelectorAll('.sb-link').forEach(l=>l.classList.toggle('active', l.dataset.view===view));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  const titles = {dashboard:'Dashboard', students:'Students', upload:'Upload Data', counseling:'Counseling', alerts:'Alerts', reports:'Reports'};
+  document.getElementById('viewTitle').textContent = titles[view];
+
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'students') renderStudents();
+  if (view === 'counseling') renderCounseling();
+  if (view === 'alerts') renderAlerts();
+  if (view === 'reports') renderReports();
+}
+function toggleDark(){
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  document.getElementById('darkBtn').textContent = darkMode ? '☀' : '☾';
+  if (currentView === 'dashboard') renderDashboard();
+}
+
+/* =====================================================================
+   DASHBOARD
+===================================================================== */
+function renderDashboard(){
+  const total = students.length;
+  const high = students.filter(s=>s.riskLevel==='High').length;
+  const mid = students.filter(s=>s.riskLevel==='Medium').length;
+  const low = students.filter(s=>s.riskLevel==='Low').length;
+  const avgAttendance = avg(students.map(s=>Number(s.attendance)));
+  const avgCgpa = avg(students.map(s=>Number(s.cgpa)));
+  const overdueFees = students.filter(s=>s.feeStatus==='Overdue').length;
+
+  const cards = [
+    ['Total students', total],
+    ['High risk', high],
+    ['Medium risk', mid],
+    ['Low risk', low],
+    ['Avg. attendance', avgAttendance.toFixed(1)+'%'],
+    ['Avg. CGPA', avgCgpa.toFixed(2)],
+    ['Fee overdue', overdueFees]
+  ];
+  document.getElementById('statGrid').innerHTML = cards.map(c=>`
+    <div class="stat-card"><div class="n">${c[1]}</div><div class="l">${c[0]}</div></div>
+  `).join('');
+
+  drawRiskChart(low, mid, high);
+  drawAttendanceByDeptChart();
+  drawDeptCountChart();
+  drawMonthlyAttendanceChart();
+  drawTrendChart();
+}
+function avg(arr){
+  if (!arr.length) return 0;
+  return arr.reduce((a,b)=>a+b,0)/arr.length;
+}
+function destroyChart(key){
+  if (charts[key]){ charts[key].destroy(); delete charts[key]; }
+}
+function chartTextColor(){ return getCss('--text'); }
+function chartGridColor(){ return getCss('--border'); }
+
+function drawRiskChart(low, mid, high){
+  destroyChart('risk');
+  const ctx = document.getElementById('chartRisk');
+  charts.risk = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels:['Low','Medium','High'], datasets:[{ data:[low,mid,high], backgroundColor:[getCss('--low'), getCss('--mid'), getCss('--high')], borderWidth:0 }] },
+    options:{ plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor()} } } }
+  });
+}
+function drawAttendanceByDeptChart(){
+  destroyChart('attendance');
+  const labels = DEPARTMENTS;
+  const data = labels.map(d => avg(students.filter(s=>s.department===d).map(s=>Number(s.attendance))));
+  charts.attendance = new Chart(document.getElementById('chartAttendance'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Avg attendance %', data:data.map(v=>Number(v.toFixed(1))), backgroundColor:getCss('--blue-500'), borderRadius:6 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ x:{ ticks:{color:chartTextColor(), autoSkip:false, maxRotation:20, minRotation:0, font:{size:10.5}}, grid:{display:false} }, y:{ min:0, max:100, ticks:{color:chartTextColor()}, grid:{color:chartGridColor()} } } }
+  });
+}
+function drawDeptCountChart(){
+  destroyChart('dept');
+  const labels = DEPARTMENTS;
+  const data = labels.map(d => students.filter(s=>s.department===d).length);
+  charts.dept = new Chart(document.getElementById('chartDept'), {
+    type:'pie',
+    data:{ labels, datasets:[{ data, backgroundColor:[getCss('--blue-600'), getCss('--blue-500'), getCss('--mid'), getCss('--low'), getCss('--high')] }] },
+    options:{ plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), boxWidth:12, font:{size:10.5}} } } }
+  });
+}
+function drawMonthlyAttendanceChart(){
+  destroyChart('monthly');
+  charts.monthly = new Chart(document.getElementById('chartMonthly'), {
+    type:'line',
+    data:{ labels: MONTH_LABELS, datasets:[{ label:'Avg attendance %', data: MONTHLY_ATTENDANCE_TREND, borderColor:getCss('--blue-600'), backgroundColor:'transparent', tension:.35, pointRadius:3 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ x:{ ticks:{color:chartTextColor()}, grid:{display:false} }, y:{ ticks:{color:chartTextColor()}, grid:{color:chartGridColor()} } } }
+  });
+}
+function drawTrendChart(){
+  destroyChart('trend');
+  charts.trend = new Chart(document.getElementById('chartTrend'), {
+    type:'line',
+    data:{ labels: MONTH_LABELS, datasets:[{ label:'% students high risk', data: MONTHLY_HIGH_RISK_PCT_TREND, borderColor:getCss('--high'), backgroundColor:'rgba(220,38,38,0.08)', fill:true, tension:.35, pointRadius:3 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ x:{ ticks:{color:chartTextColor()}, grid:{display:false} }, y:{ ticks:{color:chartTextColor()}, grid:{color:chartGridColor()} } } }
+  });
+}
+
+/* =====================================================================
+   STUDENTS TABLE
+===================================================================== */
+function populateFilterOptions(){
+  const sel = document.getElementById('filterDept');
+  sel.innerHTML = '<option value="">All departments</option>' + DEPARTMENTS.map(d=>`<option>${d}</option>`).join('');
+}
+function renderStudents(){
+  const q = (document.getElementById('searchBox').value||'').toLowerCase().trim();
+  const dept = document.getElementById('filterDept').value;
+  const year = document.getElementById('filterYear').value;
+  const risk = document.getElementById('filterRisk').value;
+
+  let list = students.filter(s=>{
+    if (q && !(s.name.toLowerCase().includes(q) || s.regNo.toLowerCase().includes(q))) return false;
+    if (dept && s.department !== dept) return false;
+    if (year && String(s.year) !== year) return false;
+    if (risk && s.riskLevel !== risk) return false;
+    return true;
+  });
+  list = list.slice().sort((a,b)=>b.riskScore - a.riskScore);
+
+  const body = document.getElementById('studentsBody');
+  if (list.length === 0){
+    body.innerHTML = `<tr class="empty-row"><td colspan="9">No students match these filters.</td></tr>`;
+    return;
+  }
+  body.innerHTML = list.map(s=>`
+    <tr>
+      <td><a class="link-btn" style="padding:0;" onclick="openProfile(${s.id})">${escapeHtml(s.name)}</a></td>
+      <td class="mono">${s.regNo}</td>
+      <td>${s.department}</td>
+      <td>${s.year} / ${s.semester}</td>
+      <td>${Number(s.cgpa).toFixed(2)}</td>
+      <td>${s.attendance}%</td>
+      <td>${badgeHtml(s.riskLevel)}</td>
+      <td class="mono">${s.riskScore}</td>
+      <td>
+        <button class="link-btn" onclick="openStudentModal(${s.id})">Edit</button>
+        <button class="link-btn del" onclick="deleteStudent(${s.id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function deleteStudent(id){
+  const s = students.find(x=>x.id===id);
+  if (!s) return;
+  if (!confirm(`Remove ${s.name} from the student database?`)) return;
+  students = students.filter(x=>x.id!==id);
+  renderStudents();
+  if (currentView==='dashboard') renderDashboard();
+}
+
+/* =====================================================================
+   STUDENT MODAL (ADD / EDIT)
+===================================================================== */
+function openStudentModal(id){
+  document.getElementById('editId').value = id || '';
+  if (id){
+    const s = students.find(x=>x.id===id);
+    document.getElementById('studentModalTitle').textContent = 'Edit student';
+    document.getElementById('f_name').value = s.name;
+    document.getElementById('f_regNo').value = s.regNo;
+    document.getElementById('f_department').value = s.department;
+    document.getElementById('f_year').value = s.year;
+    document.getElementById('f_semester').value = s.semester;
+    document.getElementById('f_age').value = s.age;
+    document.getElementById('f_gender').value = s.gender;
+    document.getElementById('f_cgpa').value = s.cgpa;
+    document.getElementById('f_internal').value = s.internal;
+    document.getElementById('f_attendance').value = s.attendance;
+    document.getElementById('f_backlogs').value = s.backlogs;
+    document.getElementById('f_feeStatus').value = s.feeStatus;
+    document.getElementById('f_contact').value = s.contact || '';
+  } else {
+    document.getElementById('studentModalTitle').textContent = 'Add student';
+    ['f_name','f_regNo','f_age','f_cgpa','f_internal','f_attendance','f_backlogs','f_contact'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f_department').value = DEPARTMENTS[0];
+    document.getElementById('f_year').value = 1;
+    document.getElementById('f_semester').value = 1;
+    document.getElementById('f_gender').value = 'Female';
+    document.getElementById('f_feeStatus').value = 'Paid';
+  }
+  document.getElementById('studentOverlay').classList.add('show');
+}
+function closeStudentModal(){
+  document.getElementById('studentOverlay').classList.remove('show');
+}
+function saveStudent(){
+  const name = document.getElementById('f_name').value.trim();
+  let regNo = document.getElementById('f_regNo').value.trim();
+  const department = document.getElementById('f_department').value;
+  if (!name){ alert('Please enter the student name.'); return; }
+  if (!regNo) regNo = genRegNo(department, document.getElementById('f_year').value);
+
+  const editId = document.getElementById('editId').value;
+  const data = {
+    name, regNo, department,
+    year: Number(document.getElementById('f_year').value),
+    semester: Number(document.getElementById('f_semester').value),
+    age: Number(document.getElementById('f_age').value) || 18,
+    gender: document.getElementById('f_gender').value,
+    cgpa: Number(document.getElementById('f_cgpa').value) || 0,
+    internal: Number(document.getElementById('f_internal').value) || 0,
+    attendance: Number(document.getElementById('f_attendance').value) || 0,
+    backlogs: Number(document.getElementById('f_backlogs').value) || 0,
+    feeStatus: document.getElementById('f_feeStatus').value,
+    contact: document.getElementById('f_contact').value.trim()
+  };
+
+  if (editId){
+    const s = students.find(x=>x.id===Number(editId));
+    Object.assign(s, data);
+    computeRisk(s);
+  } else {
+    const s = { id: nextId++, notes: [], ...data };
+    computeRisk(s);
+    students.push(s);
+  }
+  closeStudentModal();
+  renderStudents();
+  if (currentView==='dashboard') renderDashboard();
+}
+
+/* =====================================================================
+   PROFILE / RISK REPORT
+===================================================================== */
+function openProfile(id){
+  activeProfileId = id;
+  renderProfile();
+  document.getElementById('profileOverlay').classList.add('show');
+}
+function closeProfile(){
+  document.getElementById('profileOverlay').classList.remove('show');
+  activeProfileId = null;
+  // reflect any note additions back on list views
+  renderStudents();
+  if (currentView==='counseling') renderCounseling();
+  if (currentView==='alerts') renderAlerts();
+}
+function renderProfile(){
+  const s = students.find(x=>x.id===activeProfileId);
+  if (!s) return;
+  document.getElementById('profileName').textContent = s.name;
+  document.getElementById('profileMeta').textContent = `${s.department} · Year ${s.year}, Sem ${s.semester} · Reg No ${s.regNo}`;
+  document.getElementById('profileRiskLabel').textContent = `${s.riskLevel} dropout risk`;
+  const circle = document.getElementById('profileScoreCircle');
+  circle.style.background = riskColor(s.riskLevel);
+  circle.textContent = s.riskScore;
+
+  document.getElementById('profileMetrics').innerHTML = `
+    <li><span>CGPA</span><b style="margin-left:auto;">${Number(s.cgpa).toFixed(2)}</b></li>
+    <li><span>Attendance</span><b style="margin-left:auto;">${s.attendance}%</b></li>
+    <li><span>Active backlogs</span><b style="margin-left:auto;">${s.backlogs}</b></li>
+    <li><span>Fee status</span><b style="margin-left:auto;">${s.feeStatus}</b></li>
+    <li><span>Internal marks</span><b style="margin-left:auto;">${s.internal}%</b></li>
+  `;
+  document.getElementById('profileReasons').innerHTML = riskReasons(s).map(r=>`<li>${r}</li>`).join('');
+
+  const notesEl = document.getElementById('profileNotes');
+  if (!s.notes.length){
+    notesEl.innerHTML = `<div style="color:var(--muted); font-size:13px;">No counseling notes yet.</div>`;
+  } else {
+    notesEl.innerHTML = s.notes.slice().reverse().map(n=>`
+      <div class="note-item"><div class="date">${n.date} · ${escapeHtml(n.author)}</div>${escapeHtml(n.text)}</div>
+    `).join('');
+  }
+}
+function addNoteFromProfile(){
+  const s = students.find(x=>x.id===activeProfileId);
+  if (!s) return;
+  const text = document.getElementById('newNoteText').value.trim();
+  if (!text) return;
+  s.notes.push({ date: new Date().toLocaleDateString(), text, author: currentUser ? currentUser.name : 'Staff' });
+  document.getElementById('newNoteText').value = '';
+  renderProfile();
+}
+
+/* =====================================================================
+   CSV UPLOAD
+===================================================================== */
+const dropzoneEl = null; // set up listeners after DOM ready below
+function handleCsv(file){
+  if (!file) return;
+  Papa.parse(file, {
+    header:true,
+    skipEmptyLines:true,
+    complete: function(results){
+      processCsvRows(results.data);
+    },
+    error: function(err){
+      document.getElementById('uploadSummary').innerHTML = `<div style="color:var(--high); font-weight:600;">Failed to parse file: ${escapeHtml(err.message||'unknown error')}</div>`;
+    }
+  });
+}
+function processCsvRows(rows){
+  let added = 0, updated = 0, skipped = 0;
+  const required = ['name','regNo','department'];
+  rows.forEach(row=>{
+    const norm = {};
+    Object.keys(row).forEach(k=>{ norm[k.trim()] = (row[k]||'').toString().trim(); });
+    const missing = required.some(f => !norm[f]);
+    if (missing){ skipped++; return; }
+
+    const existing = students.find(s=>s.regNo.toLowerCase() === norm.regNo.toLowerCase());
+    const data = {
+      name: norm.name,
+      regNo: norm.regNo,
+      department: DEPARTMENTS.includes(norm.department) ? norm.department : DEPARTMENTS[0],
+      year: Number(norm.year)||1,
+      semester: Number(norm.semester)||1,
+      cgpa: Number(norm.cgpa)||0,
+      attendance: Number(norm.attendance)||0,
+      backlogs: Number(norm.backlogs)||0,
+      feeStatus: ['Paid','Pending','Overdue'].includes(norm.feeStatus) ? norm.feeStatus : 'Paid',
+      internal: Number(norm.internal)||0,
+      age: Number(norm.age)||18,
+      gender: norm.gender || 'Other',
+      contact: norm.contact || ''
+    };
+    if (existing){
+      Object.assign(existing, data);
+      computeRisk(existing);
+      updated++;
+    } else {
+      const s = { id: nextId++, notes:[], ...data };
+      computeRisk(s);
+      students.push(s);
+      added++;
+    }
+  });
+
+  populateFilterOptions();
+  const summary = document.getElementById('uploadSummary');
+  summary.innerHTML = `
+    <div style="font-weight:700; margin-bottom:6px; color:var(--low);">Upload processed successfully</div>
+    <div class="sum-grid">
+      <div class="stat-card"><div class="n">${added}</div><div class="l">Rows added</div></div>
+      <div class="stat-card"><div class="n">${updated}</div><div class="l">Rows updated (matched by Reg No)</div></div>
+      <div class="stat-card"><div class="n">${skipped}</div><div class="l">Rows skipped (missing required fields)</div></div>
+    </div>
+  `;
+  if (currentView==='dashboard') renderDashboard();
+  if (currentView==='students') renderStudents();
+}
+function setupDropzone(){
+  const dz = document.getElementById('dropzone');
+  ['dragenter','dragover'].forEach(evt=>dz.addEventListener(evt, e=>{ e.preventDefault(); dz.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(evt=>dz.addEventListener(evt, e=>{ e.preventDefault(); dz.classList.remove('drag'); }));
+  dz.addEventListener('drop', e=>{
+    const file = e.dataTransfer.files[0];
+    if (file) handleCsv(file);
+  });
+}
+
+/* =====================================================================
+   COUNSELING
+===================================================================== */
+function renderCounseling(){
+  const risky = students.filter(s=>s.riskLevel==='High' || s.riskLevel==='Medium').sort((a,b)=>b.riskScore-a.riskScore);
+  const el = document.getElementById('counselingList');
+  if (!risky.length){
+    el.innerHTML = `<div style="color:var(--muted); font-size:13.5px;">No students currently flagged for counseling. 🎉</div>`;
+    return;
+  }
+  el.innerHTML = risky.map(s=>`
+    <div class="risk-student-card">
+      <div class="rs-head">
+        <div>
+          <b>${escapeHtml(s.name)}</b> <span class="mono" style="color:var(--muted); font-size:12px;">${s.regNo}</span>
+          <div style="color:var(--muted); font-size:12.5px;">${s.department} · Year ${s.year}</div>
+        </div>
+        <div style="text-align:right;">
+          ${badgeHtml(s.riskLevel)}
+          <div class="mono" style="font-size:12px; color:var(--muted); margin-top:4px;">Score: ${s.riskScore}</div>
+        </div>
+      </div>
+      <div style="font-size:12.5px; color:var(--muted);">${riskReasons(s).join(' · ')}</div>
+      ${s.notes.length ? `<div class="note-item"><div class="date">${s.notes[s.notes.length-1].date}</div>${escapeHtml(s.notes[s.notes.length-1].text)}</div>` : ''}
+      <div style="margin-top:10px;">
+        <button class="link-btn" onclick="openProfile(${s.id})">Open profile &amp; add note →</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* =====================================================================
+   ALERTS
+===================================================================== */
+function renderAlerts(){
+  const alerts = [];
+  students.forEach(s=>{
+    if (s.riskLevel === 'High'){
+      alerts.push({ sev:'high', icon:'⚠', title:`${s.name} flagged as high dropout risk`, detail: riskReasons(s).join(', ') });
+    }
+    if (s.feeStatus === 'Overdue'){
+      alerts.push({ sev:'mid', icon:'💳', title:`Fee payment overdue — ${s.name}`, detail:`${s.regNo} · ${s.department}` });
+    }
+    if (Number(s.attendance) < 65){
+      alerts.push({ sev:'high', icon:'📉', title:`Critical attendance drop — ${s.name}`, detail:`Attendance at ${s.attendance}%, well below the 75% requirement` });
+    }
+  });
+  const el = document.getElementById('alertsList');
+  if (!alerts.length){
+    el.innerHTML = `<div style="color:var(--muted); font-size:13.5px;">No active alerts.</div>`;
+    return;
+  }
+  el.innerHTML = alerts.map(a=>`
+    <div class="alert-item ${a.sev==='mid'?'mid':''}">
+      <div class="a-icon">${a.icon}</div>
+      <div><b>${escapeHtml(a.title)}</b><p>${escapeHtml(a.detail)}</p></div>
+    </div>
+  `).join('');
+}
+
+/* =====================================================================
+   REPORTS
+===================================================================== */
+function renderReports(){
+  const total = students.length;
+  const high = students.filter(s=>s.riskLevel==='High').length;
+  const mid = students.filter(s=>s.riskLevel==='Medium').length;
+  const low = students.filter(s=>s.riskLevel==='Low').length;
+  const avgAttendance = avg(students.map(s=>Number(s.attendance))).toFixed(1);
+  const avgCgpa = avg(students.map(s=>Number(s.cgpa))).toFixed(2);
+
+  const deptRows = DEPARTMENTS.map(d=>{
+    const list = students.filter(s=>s.department===d);
+    return `<tr><td>${d}</td><td>${list.length}</td><td>${avg(list.map(s=>Number(s.cgpa))).toFixed(2)}</td><td>${avg(list.map(s=>Number(s.attendance))).toFixed(1)}%</td><td>${list.filter(s=>s.riskLevel==='High').length}</td></tr>`;
+  }).join('');
+
+  document.getElementById('reportBody').innerHTML = `
+    <p><b>${total}</b> students tracked across <b>${DEPARTMENTS.length}</b> departments.
+    Overall risk breakdown: <b style="color:var(--high);">${high} high</b>, <b style="color:var(--mid);">${mid} medium</b>, <b style="color:var(--low);">${low} low</b>.
+    Institution-wide average CGPA is <b>${avgCgpa}</b> with average attendance of <b>${avgAttendance}%</b>.</p>
+    <div class="table-wrap" style="margin-top:14px;">
+      <table>
+        <thead><tr><th>Department</th><th>Students</th><th>Avg CGPA</th><th>Avg Attendance</th><th>High risk</th></tr></thead>
+        <tbody>${deptRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+function exportStudentsExcel(){
+  const rows = students.map(s=>({
+    Name:s.name, "Register No":s.regNo, Department:s.department, Year:s.year, Semester:s.semester,
+    Age:s.age, Gender:s.gender, CGPA:s.cgpa, "Internal %":s.internal, "Attendance %":s.attendance,
+    Backlogs:s.backlogs, "Fee Status":s.feeStatus, "Risk Level":s.riskLevel, "Risk Score":s.riskScore
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Students");
+  XLSX.writeFile(wb, "eduguard_students.xlsx");
+}
+function exportDeptSummaryExcel(){
+  const rows = DEPARTMENTS.map(d=>{
+    const list = students.filter(s=>s.department===d);
+    return {
+      Department:d, Students:list.length,
+      "Avg CGPA": Number(avg(list.map(s=>Number(s.cgpa))).toFixed(2)),
+      "Avg Attendance %": Number(avg(list.map(s=>Number(s.attendance))).toFixed(1)),
+      "High Risk": list.filter(s=>s.riskLevel==='High').length,
+      "Medium Risk": list.filter(s=>s.riskLevel==='Medium').length,
+      "Low Risk": list.filter(s=>s.riskLevel==='Low').length
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Department Summary");
+  XLSX.writeFile(wb, "eduguard_department_summary.xlsx");
+}
+
+/* =====================================================================
+   INIT
+===================================================================== */
+document.addEventListener('DOMContentLoaded', function(){
+  setupDropzone();
+});
+</script>
+</body>
+</html>
